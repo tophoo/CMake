@@ -80,7 +80,7 @@ unsigned int const cmQtAutoGen::ParallelMax = 64;
 // Actually 32767 (see
 // https://devblogs.microsoft.com/oldnewthing/20031210-00/?p=41553) but we
 // allow for a small margin
-size_t const cmQtAutoGen::CommandLineLengthMax = 32000;
+size_t const cmQtAutoGen::CommandLineLengthMax = 7000;
 #endif
 
 cm::string_view cmQtAutoGen::GeneratorName(GenT genType)

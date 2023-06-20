@@ -354,6 +354,8 @@ public:
   {
     void Process() override;
     bool Update(std::string* reason) const;
+    void MaybeWriteMocPredefsResponseFile(std::vector<std::string>& cmd) const;
+
   };
 
   /** File parse job base class.  */
@@ -835,6 +837,8 @@ void cmQtAutoMocUicT::JobMocPredefsT::Process()
       cm::append(cmd, this->MocConst().OptionsDefinitions);
       // Add includes
       cm::append(cmd, this->MocConst().OptionsIncludes);
+      // Check if repsonse file is necessary
+      MaybeWriteMocPredefsResponseFile(cmd);
       // Execute command
       if (!this->RunProcess(GenT::MOC, result, cmd, reason.get())) {
         this->LogCommandError(GenT::MOC,
@@ -877,6 +881,51 @@ void cmQtAutoMocUicT::JobMocPredefsT::Process()
     return;
   }
 }
+
+/*
+ * Check if command line exceeds maximum length supported by OS
+ * (if on Windows) and switch to using a response file instead.
+ */
+void cmQtAutoMocUicT::JobMocPredefsT::MaybeWriteMocPredefsResponseFile(
+ std::vector<std::string>& cmd) const
+{
+#ifdef _WIN32
+  // Ensure cmd is less than CommandLineLengthMax characters
+  size_t commandLineLength = cmd.size(); // account for separating spaces
+  for (std::string const& str : cmd) {
+    commandLineLength += str.length();
+  }
+  if (commandLineLength >= CommandLineLengthMax) {
+    // Command line exceeds maximum size allowed by OS
+    // => create response file
+    std::string const responseFile = cmStrCat(this->MocConst().PredefsFileAbs, ".rsp");
+    cmsys::ofstream fout(responseFile.c_str());
+
+    if (!fout) {
+      this->LogError(
+        GenT::MOC,
+        cmStrCat("AUTOMOC was unable to create a response file at\n  ",
+                 this->MessagePath(responseFile)));
+      return;
+    }
+
+    auto it = cmd.begin();
+    while (++it != cmd.end()) {
+      fout << *it << "\n";
+    }
+    fout.close();
+
+    // Keep all but executable
+    cmd.resize(1);
+
+    // Specify response file
+    cmd.push_back(cmStrCat('@', responseFile));
+  }
+#else
+  static_cast<void>(cmd);
+#endif
+}
+
 
 bool cmQtAutoMocUicT::JobMocPredefsT::Update(std::string* reason) const
 {
